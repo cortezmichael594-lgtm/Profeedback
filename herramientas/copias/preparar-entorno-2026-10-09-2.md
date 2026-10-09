@@ -34,8 +34,6 @@ La versión de `aqt` debe coincidir con la de Anki del cliente, porque con ella 
 
 `.venv/Scripts/python herramientas/empaquetar.py --autoprueba` debe terminar en «AUTOPRUEBA: CORRECTA». Esa prueba crea un complemento mínimo en una carpeta temporal y recorre todo el proceso (mypy, importación y empaquetado), así que confirma que el entorno y la herramienta funcionan.
 
-Sesiones en la nube (claude.ai/code, con Linux): el intérprete es `.venv/bin/python`. Si la autoprueba falla con «libEGL.so.1: cannot open shared object file», a ese ordenador temporal le falta una pieza gráfica del sistema. Pida permiso al cliente (se instala fuera de esta carpeta, solo en ese ordenador), instálela con `apt-get install -y libegl1` y repita la autoprueba. En Windows no hace falta.
-
 ## 5. Control de versiones (opcional)
 
 Si git está instalado y no hay repositorio: `git init`. No instale git.

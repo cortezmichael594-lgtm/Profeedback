@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "ask": [
+      "Edit(/CLAUDE.md)",
+      "Edit(/docs/guia-complementos.md)",
+      "Edit(/docs/guia-interfaz.md)",
+      "Edit(/docs/paleta-nocturne.md)",
+      "Edit(/docs/preparar-entorno.md)",
+      "Edit(/docs/ejemplo-referencia/**)",
+      "Edit(/herramientas/empaquetar.py)",
+      "Edit(/herramientas/version-anki.txt)"
+    ]
+  }
+}

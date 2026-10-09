@@ -11,7 +11,6 @@ Uso, desde la carpeta del proyecto y con el intérprete del .venv:
     --sin-importar        omite la importación de prueba fuera de Anki
     --sin-pruebas         omite las pruebas de pruebas/<complemento>/
     --olvidar-fix FIX-003 da por retirada, a propósito, una nota de corrección
-    --revision            al empezar una sesión: qué piden la documentación y la automejora
     --autoprueba          comprueba que esta herramienta y el entorno funcionan
 
 Qué comprueba, por este orden:
@@ -20,16 +19,10 @@ Qué comprueba, por este orden:
   3. Los archivos web (css/js/html): sin colores fijos ni recursos de internet.
   4. Las notas de corrección (FIX-NNN): índice y bloques coherentes, y ninguna
      perdida respecto a la última entrega (se guardan en herramientas/registro-fix/).
-  5. La documentación del complemento: docs/<complemento>/que-hace.md al día con la
-     versión del manifiesto y docs/<complemento>/errores.md con cada FIX del código.
-  6. La automejora: CLAUDE.md con sus apartados protegidos y sin cambios sin registrar,
-     la cerradura de permisos de .claude/settings.json, aprendizajes con ficha y fuente
-     oficial y sin borrados silenciosos, y documentos de docs/ revisados (véanse
-     <documentacion> y <automejora> en CLAUDE.md).
-  7. mypy contra la versión de Anki instalada en el .venv: detecta hooks, funciones
+  5. mypy contra la versión de Anki instalada en el .venv: detecta hooks, funciones
      y métodos inventados y firmas incorrectas.
-  8. Importación del paquete fuera de Anki y pruebas de pruebas/<complemento>/.
-  9. Construcción del .ankiaddon en paquetes/ y verificación del zip resultante.
+  6. Importación del paquete fuera de Anki y pruebas de pruebas/<complemento>/.
+  7. Construcción del .ankiaddon en paquetes/ y verificación del zip resultante.
 
 Códigos de salida: 0 correcto (puede haber avisos), 1 hay errores, 2 uso incorrecto.
 """
@@ -38,8 +31,6 @@ from __future__ import annotations
 
 import argparse
 import ast
-import datetime
-import hashlib
 import importlib.util
 import json
 import os
@@ -47,9 +38,7 @@ import re
 import subprocess
 import sys
 import tempfile
-import urllib.parse
 import zipfile
-from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -95,71 +84,6 @@ COMMENT_START = r"^\s*(?:#|//|/\*+|\*)\s*"
 FIX_BLOCK_RE = re.compile(COMMENT_START + r"---\s*(" + FIX_ID + r")\b")
 FIX_INDEX_RE = re.compile(COMMENT_START + r"(" + FIX_ID + r")\s*\(")
 
-# Documentación de cada complemento y automejora (véanse <documentacion> y <automejora> en CLAUDE.md).
-DESCRIPTION_FILE = "que-hace.md"
-ERRORS_FILE = "errores.md"
-DESCRIPTION_VERSION_RE = re.compile(r"^Versión\s+(\d+(?:\.\d+)*)\b")
-PROTECTED_SECTIONS = (
-    "prioridades",
-    "fuentes_de_verdad",
-    "memoria_de_correcciones",
-    "documentacion",
-    "automejora",
-    "comprobaciones",
-)
-LEARNINGS_IMPORT = "@docs/aprendizajes.md"
-# Cerradura: permisos «ask» que obligan a Claude Code a pedir el «sí» del cliente antes de
-# editar las reglas del taller y los documentos del cliente, en cualquier modo de permisos.
-LOCK_RULES = (
-    "Edit(/CLAUDE.md)",
-    "Edit(/docs/guia-complementos.md)",
-    "Edit(/docs/guia-interfaz.md)",
-    "Edit(/docs/paleta-nocturne.md)",
-    "Edit(/docs/preparar-entorno.md)",
-    "Edit(/docs/ejemplo-referencia/**)",
-    "Edit(/herramientas/empaquetar.py)",
-    "Edit(/herramientas/version-anki.txt)",
-)
-LOG_SECTIONS = (
-    "Aprendizajes",
-    "Retirados",
-    "Documentos revisados",
-    "Propuestas pendientes",
-    "Propuestas rechazadas",
-    "Cambios aprobados",
-)
-APR_ID = r"APR-\d{3}"
-APR_LINE_RE = re.compile(r"^- (" + APR_ID + r") · (Anki \d+(?:\.\d+)*|Claude Code) · \S")
-APR_CARD_RE = re.compile(r"^### (" + APR_ID + r")\b")
-APR_FIELDS = ("Qué es", "Por qué es buena práctica", "Para qué sirve", "Cómo se aplica", "Fuente", "Comprobado")
-# La guía oficial de Claude Code recomienda menos de 200 líneas por CLAUDE.md.
-INSTRUCTIONS_MAX_LINES = 200
-LEARNINGS_WARN_LINES = 80
-LEARNINGS_MAX_LINES = 120
-CLAUDE_CODE_RECHECK_DAYS = 180
-# Fuentes oficiales: anfitrión -> comienzos de ruta admitidos ("/" = todo el sitio).
-OFFICIAL_SITES: dict[str, tuple[str, ...]] = {
-    "docs.ankiweb.net": ("/",),
-    "addon-docs.ankiweb.net": ("/",),
-    "ankiweb.net": ("/",),
-    "apps.ankiweb.net": ("/",),
-    "faqs.ankiweb.net": ("/",),
-    "github.com": ("/ankitects/",),
-    "raw.githubusercontent.com": ("/ankitects/",),
-    "pypi.org": ("/project/aqt/", "/project/anki/", "/pypi/aqt/", "/pypi/anki/"),
-    "doc.qt.io": ("/",),
-    "www.riverbankcomputing.com": ("/",),
-    "docs.python.org": ("/",),
-    "code.claude.com": ("/",),
-    "docs.claude.com": ("/",),
-    "docs.anthropic.com": ("/",),
-}
-URL_IN_TEXT_RE = re.compile(r"https?://[^\s)>\]»]+")
-ANKI_CODE_RE = re.compile(r"(?<![\w/.])(?:_aqt|aqt|anki)/[\w./-]*\w")
-PROJECT_SOURCE_RE = re.compile(r"(?<![\w/.])(?:pruebas|docs)/[\w./-]*\w")
-# Un «@» seguido de una ruta, en un archivo que CLAUDE.md importa, cargaría otro archivo como instrucciones.
-IMPORT_RE = re.compile(r"(?<![\w.])@[\w~./\\-]")
-
 
 # ---------------------------------------------------------------------------
 # Estructuras
@@ -189,22 +113,6 @@ class Project:
     @property
     def anki_version_file(self) -> Path:
         return self.root / "herramientas" / "version-anki.txt"
-
-    @property
-    def docs(self) -> Path:
-        return self.root / "docs"
-
-    @property
-    def instructions(self) -> Path:
-        return self.root / "CLAUDE.md"
-
-    @property
-    def learnings(self) -> Path:
-        return self.docs / "aprendizajes.md"
-
-    @property
-    def improvement_log(self) -> Path:
-        return self.docs / "automejora.md"
 
 
 @dataclass
@@ -287,19 +195,6 @@ def version_tuple(text: str) -> tuple[int, ...]:
 # ---------------------------------------------------------------------------
 
 
-def addon_folders(project: Project) -> list[Path]:
-    """Carpetas de complementos/ que parecen un complemento (con __init__.py o manifest.json)."""
-    if not project.addons.is_dir():
-        return []
-    return sorted(
-        p
-        for p in project.addons.iterdir()
-        if p.is_dir()
-        and not p.name.startswith(".")
-        and ((p / "__init__.py").exists() or (p / "manifest.json").exists())
-    )
-
-
 def pick_addon(project: Project, name: str | None, report: Report) -> Path | None:
     if name:
         direct = Path(name)
@@ -308,7 +203,15 @@ def pick_addon(project: Project, name: str | None, report: Report) -> Path | Non
                 return candidate.resolve()
         report.error(f"No existe la carpeta del complemento «{name}» (se busca en complementos/).")
         return None
-    candidates = addon_folders(project)
+    candidates = []
+    if project.addons.is_dir():
+        candidates = sorted(
+            p
+            for p in project.addons.iterdir()
+            if p.is_dir()
+            and not p.name.startswith(".")
+            and ((p / "__init__.py").exists() or (p / "manifest.json").exists())
+        )
     if len(candidates) == 1:
         return candidates[0].resolve()
     if not candidates:
@@ -746,420 +649,8 @@ def save_fix_registry(project: Project, package: str, found: dict[str, list[str]
     )
 
 
-def addon_fix_ids(folder: Path) -> set[str]:
-    """Números FIX de los bloques de corrección del código, sin más comprobaciones."""
-    found: set[str] = set()
-    for path in package_files(folder, Report()):
-        if path.suffix in TEXT_SUFFIXES:
-            for line in (read_text(path) or "").splitlines():
-                block = FIX_BLOCK_RE.match(line)
-                if block:
-                    found.add(block.group(1))
-    return found
-
-
 # ---------------------------------------------------------------------------
-# 5. Documentación del complemento y automejora
-# ---------------------------------------------------------------------------
-
-
-def fingerprint(path: Path) -> str | None:
-    """Huella corta del contenido (12 cifras hexadecimales), o None si no se puede leer.
-
-    En los textos no cuentan los saltos de línea de Windows ni el espacio del final: así la
-    huella no cambia al descargar el archivo en otro sistema, solo si cambia lo que dice.
-    """
-    try:
-        data = path.read_bytes()
-    except OSError:
-        return None
-    try:
-        text = data.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        return hashlib.sha256(data).hexdigest()[:12]
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n").rstrip() + "\n"
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:12]
-
-
-def without_code_spans(line: str) -> str:
-    return re.sub(r"`[^`]*`", "", line)
-
-
-def markdown_sections(text: str) -> dict[str, list[str]]:
-    """Líneas de cada apartado «## Título», por título (sin la línea del título)."""
-    sections: dict[str, list[str]] = {}
-    current: list[str] | None = None
-    for line in text.splitlines():
-        if line.startswith("## "):
-            current = sections.setdefault(line[3:].strip(), [])
-        elif current is not None:
-            current.append(line)
-    return sections
-
-
-def check_addon_docs(
-    project: Project,
-    package: str,
-    manifest: Mapping[str, object] | None,
-    fixes: set[str],
-    report: Report,
-    strict: bool = True,
-) -> None:
-    """que-hace.md al día con la versión y errores.md con cada FIX (véase <documentacion>)."""
-    problem = report.error if strict else report.warn
-    before = len(report.errors) + len(report.warnings)
-    folder = f"docs/{package}"
-    version = str((manifest or {}).get("human_version") or "").strip()
-
-    description = read_text(project.docs / package / DESCRIPTION_FILE)
-    if description is None:
-        problem(
-            f"Falta {folder}/{DESCRIPTION_FILE}: describa en lenguaje llano todo lo que hace el complemento "
-            "(modelo en docs/ejemplo-referencia/docs/ejemplo_referencia/)."
-        )
-    else:
-        described = None
-        for line in description.splitlines()[:15]:
-            match = DESCRIPTION_VERSION_RE.match(line.strip())
-            if match:
-                described = match.group(1)
-                break
-        if described is None:
-            problem(f"{folder}/{DESCRIPTION_FILE}: falta, bajo el título, la línea «Versión X.Y.Z · AAAA-MM-DD».")
-        elif not version:
-            report.warn("manifest.json no tiene human_version: no se puede comprobar que la descripción esté al día.")
-        elif described != version:
-            problem(
-                f"{folder}/{DESCRIPTION_FILE} describe la versión {described} y el complemento es la {version}: "
-                "actualícela con lo que hace ahora."
-            )
-
-    errors_text = read_text(project.docs / package / ERRORS_FILE)
-    if errors_text is None:
-        problem(
-            f"Falta {folder}/{ERRORS_FILE}: fallos pendientes, corregidos (FIX-NNN) y lo que es así "
-            "a propósito, en lenguaje llano."
-        )
-    else:
-        listed = set(re.findall(r"\b(" + FIX_ID + r")\b", errors_text))
-        for fix in sorted(fixes - listed):
-            problem(f"{fix} está en el código pero no en {folder}/{ERRORS_FILE}: anótelo en «Corregidos», en lenguaje llano.")
-
-    if len(report.errors) + len(report.warnings) == before:
-        report.ok(f"Documentación al día en {folder}/: qué hace (versión {version}) y errores ({len(fixes)} corrección(es)).")
-
-
-def check_instructions(project: Project, approved: list[str], report: Report) -> None:
-    """CLAUDE.md: apartados protegidos, carga de los aprendizajes, tamaño y cambios registrados."""
-    text = read_text(project.instructions)
-    if text is None:
-        report.error("No se puede leer CLAUDE.md: restaure la última copia de herramientas/copias/.")
-        return
-    before = len(report.errors) + len(report.warnings)
-    for name in PROTECTED_SECTIONS:
-        if not re.search(rf"(?m)^<{name}>\s*$", text) or not re.search(rf"(?m)^</{name}>\s*$", text):
-            report.error(
-                f"CLAUDE.md: falta el apartado <{name}> o su cierre. Restáurelo desde herramientas/copias/ "
-                "y avise al cliente."
-            )
-    if not any(LEARNINGS_IMPORT in without_code_spans(line) for line in text.splitlines()):
-        report.error(f"CLAUDE.md ya no carga los aprendizajes: falta {LEARNINGS_IMPORT} fuera de comillas invertidas.")
-    lines = len(text.splitlines())
-    if lines > INSTRUCTIONS_MAX_LINES:
-        report.warn(
-            f"CLAUDE.md tiene {lines} líneas y la guía oficial de Claude Code recomienda menos de "
-            f"{INSTRUCTIONS_MAX_LINES}: proponga al cliente aligerarlo (véase <automejora>)."
-        )
-    # Cada cambio de CLAUDE.md queda registrado con la huella que deja; la última debe ser la actual.
-    current = fingerprint(project.instructions)
-    registered = [line for line in approved if "Huella de CLAUDE.md:" in line]
-    last = re.search(r"Huella de CLAUDE\.md:\s*([0-9a-f]{12})", registered[-1]) if registered else None
-    if last is None or last.group(1) != current:
-        report.error(
-            f"CLAUDE.md ha cambiado sin registrar (huella actual: {current}). Si el cliente aprobó el cambio, "
-            "anótelo en «Cambios aprobados» de docs/automejora.md con esa huella; si no, restaure la copia "
-            "de herramientas/copias/."
-        )
-    else:
-        copy = re.search(r"Copia previa:\s*(herramientas/copias/[^\s,;·()]+)", registered[-1])
-        if copy and not (project.root / copy.group(1).rstrip(".")).exists():
-            report.warn(f"El último cambio aprobado cita la copia {copy.group(1)}, que no existe: sin ella no hay vuelta atrás.")
-    if len(report.errors) + len(report.warnings) == before:
-        report.ok(f"CLAUDE.md: {lines} líneas, apartados protegidos en su sitio y ningún cambio sin registrar.")
-
-
-def check_lock(project: Project, report: Report) -> None:
-    """La cerradura: los permisos «ask» de .claude/ piden el «sí» del cliente antes de editar las reglas."""
-    rules: set[str] = set()
-    for name in ("settings.json", "settings.local.json"):
-        path = project.root / ".claude" / name
-        if not path.exists():
-            continue
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            report.warn(f".claude/{name} no se puede leer como JSON: no se ha podido comprobar la cerradura de las reglas.")
-            continue
-        permissions = data.get("permissions") if isinstance(data, dict) else None
-        ask = permissions.get("ask") if isinstance(permissions, dict) else None
-        if isinstance(ask, list):
-            rules.update(rule for rule in ask if isinstance(rule, str))
-    missing = [rule for rule in LOCK_RULES if rule not in rules]
-    if missing:
-        report.warn(
-            "La cerradura de las reglas no está completa: faltan en los permisos «ask» de .claude/settings.json "
-            + ", ".join(missing)
-            + ". Sin ellas, Claude puede editar las reglas sin preguntar al cliente: propóngale añadirlas "
-            "sin tocar sus otros permisos (véase <automejora>)."
-        )
-    else:
-        report.ok("Cerradura puesta: Claude Code pide el «sí» del cliente antes de editar las reglas.")
-
-
-def anki_code_root() -> Path | None:
-    """Carpeta site-packages del Anki instalado en el .venv (se localiza sin importarlo).
-
-    Se usa la carpeta del paquete y no su __init__.py: anki y _aqt no tienen ninguno.
-    """
-    for name in ("aqt", "anki"):
-        spec = importlib.util.find_spec(name)
-        if spec is not None and spec.submodule_search_locations:
-            return Path(list(spec.submodule_search_locations)[0]).resolve().parent
-    return None
-
-
-def is_official(url: str) -> bool:
-    parts = urllib.parse.urlsplit(url)
-    prefixes = OFFICIAL_SITES.get((parts.hostname or "").lower())
-    if parts.scheme not in ("http", "https") or prefixes is None:
-        return False
-    path = (parts.path or "/").rstrip("/") + "/"
-    return any(path.startswith(prefix) for prefix in prefixes)
-
-
-def check_source(apr: str, source: str, project: Project, code_root: Path | None, report: Report) -> None:
-    """Fuente de un aprendizaje: páginas oficiales, código del Anki instalado o pruebas del proyecto."""
-    valid = 0
-    before = len(report.errors)
-    for url in (found.rstrip(".,;:") for found in URL_IN_TEXT_RE.findall(source)):
-        if is_official(url):
-            valid += 1
-        else:
-            report.error(
-                f"{apr}: «{url[:70]}» no es una fuente oficial. Si solo sirvió de pista, anótela en «Pista:» "
-                "y confirme lo aprendido en una fuente oficial."
-            )
-    rest = URL_IN_TEXT_RE.sub(" ", source)
-    for ref in ANKI_CODE_RE.findall(rest):
-        if code_root is None:
-            report.warn(f"{apr}: no se ha podido comprobar «{ref}»: el entorno no tiene Anki instalado.")
-            valid += 1
-        elif (code_root / ref).exists():
-            valid += 1
-        else:
-            report.error(f"{apr}: «{ref}» no existe en el Anki instalado.")
-    for ref in PROJECT_SOURCE_RE.findall(rest):
-        if (project.root / ref).exists():
-            valid += 1
-        else:
-            report.error(f"{apr}: «{ref}» no existe en el proyecto.")
-    if not valid and len(report.errors) == before:
-        report.error(
-            f"{apr}: «Fuente:» debe citar una página oficial, un archivo del Anki instalado (ruta desde "
-            "site-packages, por ejemplo aqt/operations/__init__.py) o una prueba de pruebas/."
-        )
-
-
-def check_learnings(project: Project, sections: dict[str, list[str]], report: Report) -> None:
-    """Aprendizajes: formato, ficha completa, fuente oficial, vigencia y ningún borrado silencioso."""
-    text = read_text(project.learnings)
-    if text is None:
-        report.error("Falta docs/aprendizajes.md (lo aprendido que se carga al empezar): restáurelo.")
-        return
-    before = len(report.errors) + len(report.warnings)
-    lines = text.splitlines()
-    if len(lines) > LEARNINGS_MAX_LINES:
-        report.error(
-            f"docs/aprendizajes.md tiene {len(lines)} líneas (tope {LEARNINGS_MAX_LINES}): "
-            "junte lo repetido y retire lo caducado."
-        )
-    elif len(lines) > LEARNINGS_WARN_LINES:
-        report.warn(
-            f"docs/aprendizajes.md tiene {len(lines)} líneas (conviene menos de {LEARNINGS_WARN_LINES}): "
-            "junte lo repetido y retire lo caducado."
-        )
-
-    index: dict[str, str] = {}
-    for number, line in enumerate(lines, start=1):
-        if IMPORT_RE.search(without_code_spans(line)):
-            report.error(
-                f"docs/aprendizajes.md:{number}: un «@» seguido de una ruta cargaría ese archivo como "
-                "instrucciones; escríbalo entre comillas invertidas."
-            )
-        if not line.startswith("- APR"):
-            continue
-        match = APR_LINE_RE.match(line)
-        if match is None:
-            report.error(
-                f"docs/aprendizajes.md:{number}: use el formato «- APR-NNN · Anki X.Y.Z · qué hacer» "
-                "(o «Claude Code» en lugar de la versión)."
-            )
-        elif match.group(1) in index:
-            report.error(f"docs/aprendizajes.md:{number}: {match.group(1)} está repetido.")
-        else:
-            index[match.group(1)] = match.group(2)
-
-    cards: dict[str, list[str]] = {}
-    current: list[str] | None = None
-    for line in sections.get("Aprendizajes", []):
-        card = APR_CARD_RE.match(line)
-        if card:
-            if card.group(1) in cards:
-                report.error(f"docs/automejora.md: la ficha {card.group(1)} está repetida.")
-            current = cards.setdefault(card.group(1), [])
-        elif line.startswith("#"):
-            current = None
-        elif current is not None:
-            current.append(line)
-    retired = set(re.findall(r"(?m)^- (" + APR_ID + r")\b", "\n".join(sections.get("Retirados", []))))
-
-    for apr in sorted(set(index) - set(cards)):
-        report.error(f"{apr} está en docs/aprendizajes.md pero no tiene ficha en docs/automejora.md.")
-    for apr in sorted(set(cards) - set(index) - retired):
-        report.error(f"{apr} tiene ficha en docs/automejora.md pero no está en docs/aprendizajes.md ni en «Retirados».")
-    for apr in sorted(set(index) & retired):
-        report.error(f"{apr} figura en «Retirados» pero sigue en docs/aprendizajes.md.")
-    # Numeración sin huecos: lo que deja de valer se retira con su motivo, nunca se borra sin más.
-    numbers = [int(apr.split("-")[1]) for apr in set(index) | retired | set(cards)]
-    for number in range(1, max(numbers, default=0) + 1):
-        apr = f"APR-{number:03d}"
-        if apr not in index and apr not in retired and apr not in cards:
-            report.error(f"{apr} ha desaparecido sin pasar a «Retirados» de docs/automejora.md (con su motivo).")
-
-    expected = (read_text(project.anki_version_file) or "").strip()
-    code_root = anki_code_root()
-    today = datetime.date.today()
-    for apr in sorted(set(index) & set(cards)):
-        fields: dict[str, str] = {}
-        for line in cards[apr]:
-            field_match = re.match(r"^- ([^:]+):\s*(.*)$", line)
-            if field_match:
-                fields[field_match.group(1).strip()] = field_match.group(2).strip()
-        for label in APR_FIELDS:
-            if not fields.get(label):
-                report.error(f"{apr}: a su ficha de docs/automejora.md le falta «{label}:».")
-        if fields.get("Fuente"):
-            check_source(apr, fields["Fuente"], project, code_root, report)
-        checked = fields.get("Comprobado", "")
-        date_match = re.search(r"\d{4}-\d{2}-\d{2}", checked)
-        checked_on = None
-        if date_match:
-            try:
-                checked_on = datetime.date.fromisoformat(date_match.group())
-            except ValueError:
-                checked_on = None
-        if checked and checked_on is None:
-            report.error(f"{apr}: «Comprobado:» debe llevar una fecha válida (AAAA-MM-DD).")
-        scope = index[apr]
-        if scope.startswith("Anki ") and expected and version_tuple(scope[5:]) != version_tuple(expected):
-            report.warn(
-                f"{apr} se comprobó con {scope} y el cliente usa Anki {expected}: vuelva a comprobarlo en el "
-                "código instalado y actualícelo, corríjalo o retírelo."
-            )
-        if scope == "Claude Code" and checked_on and (today - checked_on).days > CLAUDE_CODE_RECHECK_DAYS:
-            report.warn(
-                f"{apr} (Claude Code) se comprobó el {checked_on.isoformat()}: vuelva a comprobarlo en "
-                "code.claude.com, que cambia a menudo."
-            )
-
-    if len(report.errors) + len(report.warnings) == before:
-        report.ok(f"Aprendizajes: {len(index)} vigente(s), con ficha y fuente oficial; {len(retired)} retirado(s).")
-
-
-def reference_documents(project: Project) -> list[Path]:
-    """Documentos de consulta de docs/: todo salvo los registros de la automejora, el ejemplo
-    de referencia y las carpetas de documentación de cada complemento."""
-    docs = project.docs
-    if not docs.is_dir():
-        return []
-    found: list[Path] = []
-    for path in sorted(docs.rglob("*")):
-        relative = path.relative_to(docs)
-        if not path.is_file() or path.name.startswith(".") or path.name.lower() in ("thumbs.db", "desktop.ini"):
-            continue
-        if relative.parts[0] == "ejemplo-referencia" or relative.as_posix() in ("aprendizajes.md", "automejora.md"):
-            continue
-        top = docs / relative.parts[0]
-        if len(relative.parts) > 1 and ((top / DESCRIPTION_FILE).exists() or (top / ERRORS_FILE).exists()):
-            continue
-        found.append(path)
-    return found
-
-
-def check_reviewed_documents(project: Project, sections: dict[str, list[str]], report: Report) -> None:
-    """Cada documento de consulta figura en «Documentos revisados» con la huella que tiene ahora."""
-    registered: dict[str, str] = {}
-    for line in sections.get("Documentos revisados", []):
-        row = re.match(r"^\|\s*(docs/[^|]+?)\s*\|\s*([0-9a-f]{12})\s*\|", line)
-        if row:
-            registered[row.group(1)] = row.group(2)
-    before = len(report.warnings)
-    current = {path.relative_to(project.root).as_posix(): fingerprint(path) for path in reference_documents(project)}
-    for name, mark in current.items():
-        if name not in registered:
-            report.warn(
-                f"Documento nuevo sin revisar: {name} (huella {mark}). Léalo, anote lo aprendido y "
-                "regístrelo en «Documentos revisados» de docs/automejora.md."
-            )
-        elif registered[name] != mark:
-            report.warn(f"Documento cambiado desde que se revisó: {name} (huella nueva {mark}). Revise qué ha cambiado y actualice su fila.")
-    for name in sorted(set(registered) - set(current)):
-        report.warn(f"«Documentos revisados» cita {name}, que ya no existe: quite su fila.")
-    if len(report.warnings) == before:
-        report.ok(f"Documentos de consulta revisados: {len(current)}.")
-
-
-def check_self_improvement(project: Project, report: Report) -> None:
-    """La automejora (véase <automejora> en CLAUDE.md): nada se pierde, se cuela ni cambia sin registrar."""
-    log = read_text(project.improvement_log)
-    sections: dict[str, list[str]] = {}
-    if log is None:
-        report.error("Falta docs/automejora.md (registro de la automejora): restáurelo.")
-    else:
-        sections = markdown_sections(log)
-        for title in LOG_SECTIONS:
-            if title not in sections:
-                report.error(f"docs/automejora.md: falta el apartado «## {title}».")
-    check_instructions(project, sections.get("Cambios aprobados", []), report)
-    check_lock(project, report)
-    check_learnings(project, sections, report)
-    check_reviewed_documents(project, sections, report)
-    pending = re.findall(r"(?m)^- (PROP-\d{3})\b", "\n".join(sections.get("Propuestas pendientes", [])))
-    if pending:
-        report.warn(
-            f"Hay {len(pending)} propuesta(s) de mejora esperando al cliente ({', '.join(pending)}): "
-            "pregúntele con AskUserQuestion (véase <automejora>)."
-        )
-
-
-def revision(project: Project) -> Report:
-    """Lo que conviene atender al empezar una sesión: automejora y documentación de cada complemento."""
-    report = Report()
-    check_self_improvement(project, report)
-    for folder in addon_folders(project):
-        try:
-            manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            manifest = {}
-        if not isinstance(manifest, dict):
-            manifest = {}
-        package = str(manifest.get("package") or folder.name)
-        check_addon_docs(project, package, manifest, addon_fix_ids(folder), report, strict=False)
-    return report
-
-
-# ---------------------------------------------------------------------------
-# 6. Entorno, mypy, importación y pruebas
+# 5. Entorno, mypy, importación y pruebas
 # ---------------------------------------------------------------------------
 
 
@@ -1240,7 +731,7 @@ def check_tests(project: Project, folder: Path, report: Report) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. Paquete
+# 6. Paquete
 # ---------------------------------------------------------------------------
 
 
@@ -1318,8 +809,6 @@ def execute(project: Project, name: str | None, options: Options) -> tuple[Repor
 
     package = str(manifest["package"]) if manifest else folder.name
     found = check_fix_notes(project, folder, package, files, options, report)
-    check_addon_docs(project, package, manifest, set(found or {}), report)
-    check_self_improvement(project, report)
 
     if check_environment(project, report):
         if not options.skip_mypy:
@@ -1340,7 +829,7 @@ def execute(project: Project, name: str | None, options: Options) -> tuple[Repor
     return report, built
 
 
-def print_sections(report: Report) -> None:
+def print_report(report: Report, built: Path | None, only_check: bool, show_path: bool = True) -> None:
     if report.done:
         print("COMPROBADO")
         for line in report.done:
@@ -1353,11 +842,6 @@ def print_sections(report: Report) -> None:
         print("ERRORES")
         for line in report.errors:
             print(f"  - {line}")
-
-
-def print_report(report: Report, built: Path | None, only_check: bool, show_path: bool = True) -> None:
-    print_sections(report)
-    if report.errors:
         print(f"\nRESULTADO: HAY {len(report.errors)} ERROR(ES). No se ha generado ningún paquete.")
         return
     if built is not None:
@@ -1370,96 +854,6 @@ def print_report(report: Report, built: Path | None, only_check: bool, show_path
             print(f"PAQUETE: {built}")
     else:
         print(f"\nRESULTADO: CORRECTO ({len(report.warnings)} aviso(s)){' (solo comprobación)' if only_check else ''}.")
-
-
-def write_workshop_fixture(project: Project, package: str, version: str) -> None:
-    """Taller mínimo y correcto para la autoprueba: CLAUDE.md, automejora y documentación."""
-    today = datetime.date.today().isoformat()
-    protected = "".join(f"<{name}>\nTexto.\n</{name}>\n\n" for name in PROTECTED_SECTIONS)
-    project.instructions.write_text(f"# Autoprueba\n\n{protected}Aprendizajes: {LEARNINGS_IMPORT}\n", encoding="utf-8")
-    (project.root / ".claude").mkdir(exist_ok=True)
-    (project.root / ".claude" / "settings.json").write_text(
-        json.dumps({"permissions": {"ask": list(LOCK_RULES)}}, indent=2), encoding="utf-8"
-    )
-    (project.docs / package).mkdir(parents=True, exist_ok=True)
-    project.learnings.write_text(
-        "# Aprendizajes\n\n## Vigentes\n- APR-001 · Anki 26.09.3 · Primera idea.\n- APR-002 · Anki 26.09.3 · Segunda idea.\n",
-        encoding="utf-8",
-    )
-    card = (
-        "- Qué es: x.\n- Por qué es buena práctica: x.\n- Para qué sirve: x.\n- Cómo se aplica: x.\n"
-        "- Fuente: {source}\n- Comprobado: " + today + ", con Anki 26.09.3.\n"
-    )
-    project.improvement_log.write_text(
-        "# Automejora\n\n## Aprendizajes\n\n### APR-001 · Uno\n"
-        + card.format(source="https://docs.ankiweb.net/addons/intro")
-        + "\n### APR-002 · Dos\n"
-        + card.format(source="_aqt/hooks.py")
-        + "\n## Retirados\n\n## Documentos revisados\n\n## Propuestas pendientes\n\n## Propuestas rechazadas\n\n"
-        + f"## Cambios aprobados\n- {today} · Autoprueba. Huella de CLAUDE.md: {fingerprint(project.instructions)}.\n",
-        encoding="utf-8",
-    )
-    (project.docs / package / DESCRIPTION_FILE).write_text(
-        f"# Qué hace Autoprueba\n\nVersión {version} · {today}\n\nNada.\n", encoding="utf-8"
-    )
-    (project.docs / package / ERRORS_FILE).write_text(
-        "# Errores de Autoprueba\n\n## Pendientes\n\n## Corregidos\n\n## Así a propósito\n", encoding="utf-8"
-    )
-
-
-def docs_self_test(project: Project, package: str, version: str) -> list[str]:
-    """Estropea a propósito la documentación y la automejora; devuelve lo que NO se detectó."""
-    description = project.docs / package / DESCRIPTION_FILE
-    log = project.improvement_log
-    manifest = {"human_version": version}
-
-    def addon(report: Report) -> None:
-        check_addon_docs(project, package, manifest, set(), report)
-
-    def addon_with_fix(report: Report) -> None:
-        check_addon_docs(project, package, manifest, {"FIX-001"}, report)
-
-    def workshop(report: Report) -> None:
-        check_self_improvement(project, report)
-
-    cases: list[tuple[str, list[tuple[Path, str, str]], Callable[[Report], None]]] = [
-        ("una descripción desfasada", [(description, f"Versión {version}", "Versión 0.0.0")], addon),
-        ("un FIX sin anotar en errores.md", [], addon_with_fix),
-        ("una fuente no oficial", [(log, "https://docs.ankiweb.net/addons/intro", "https://www.reddit.com/r/Anki/")], workshop),
-        ("una ruta inventada del código de Anki", [(log, "_aqt/hooks.py", "_aqt/no_existe.py")], workshop),
-        (
-            "un aprendizaje borrado sin retirar",
-            [(project.learnings, "- APR-001 · Anki 26.09.3 · Primera idea.\n", ""), (log, "### APR-001 · Uno\n", "### Sin número\n")],
-            workshop,
-        ),
-        ("una importación colada en los aprendizajes", [(project.learnings, "## Vigentes\n", "## Vigentes\nVéase @../secreto.txt\n")], workshop),
-        ("un cambio de CLAUDE.md sin registrar", [(project.instructions, "# Autoprueba\n", "# Autoprueba cambiada\n")], workshop),
-    ]
-    missed: list[str] = []
-    for label, edits, check in cases:
-        originals = {path: path.read_text(encoding="utf-8") for path, _, _ in edits}
-        for path, old, new in edits:
-            text = path.read_text(encoding="utf-8")
-            if old not in text:
-                missed.append(f"{label} (la autoprueba no pudo prepararlo)")
-            path.write_text(text.replace(old, new, 1), encoding="utf-8")
-        report = Report()
-        check(report)
-        if not report.errors:
-            missed.append(label)
-        for path, original in originals.items():
-            path.write_text(original, encoding="utf-8")
-
-    # La cerradura quitada no bloquea una entrega urgente, pero debe avisar.
-    settings = project.root / ".claude" / "settings.json"
-    original_settings = settings.read_text(encoding="utf-8")
-    settings.write_text("{}", encoding="utf-8")
-    report = Report()
-    check_self_improvement(project, report)
-    if not any("cerradura" in warning for warning in report.warnings):
-        missed.append("una cerradura quitada")
-    settings.write_text(original_settings, encoding="utf-8")
-    return missed
 
 
 def self_test() -> int:
@@ -1479,7 +873,6 @@ def self_test() -> int:
         (good / "__pycache__").mkdir()
         (good / "__pycache__" / "x.pyc").write_bytes(b"x")
         (good / "meta.json").write_text("{}", encoding="utf-8")
-        write_workshop_fixture(project, "autoprueba_ok", "0.0.1")
         options = Options(skip_tests=True)
         report, built = execute(project, "autoprueba_ok", options)
         print_report(report, built, False, show_path=False)
@@ -1500,11 +893,6 @@ def self_test() -> int:
         if bad_built is not None or len(bad_report.errors) < 2:
             print("\nAUTOPRUEBA: no detecta errores conocidos (sintaxis y manifiesto). No se fíe de esta herramienta.")
             return 1
-
-        missed = docs_self_test(project, "autoprueba_ok", "0.0.1")
-        if missed:
-            print(f"\nAUTOPRUEBA: no detecta {'; '.join(missed)}. No se fíe de esta herramienta.")
-            return 1
     print("\nAUTOPRUEBA: CORRECTA. La herramienta y el entorno funcionan.")
     return 0
 
@@ -1517,7 +905,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sin-importar", action="store_true")
     parser.add_argument("--sin-pruebas", action="store_true")
     parser.add_argument("--olvidar-fix", action="append", default=[], metavar="FIX-NNN")
-    parser.add_argument("--revision", action="store_true")
     parser.add_argument("--autoprueba", action="store_true")
     args = parser.parse_args(argv)
 
@@ -1525,14 +912,6 @@ def main(argv: list[str] | None = None) -> int:
         return self_test()
 
     project = Project(Path(__file__).resolve().parent.parent)
-    if args.revision:
-        report = revision(project)
-        print_sections(report)
-        if report.errors or report.warnings:
-            print("\nREVISIÓN: atienda lo anterior según <documentacion> y <automejora> de CLAUDE.md.")
-        else:
-            print("\nREVISIÓN: nada pendiente.")
-        return 1 if report.errors else 0
     options = Options(
         only_check=args.solo_comprobar,
         skip_mypy=args.sin_mypy,

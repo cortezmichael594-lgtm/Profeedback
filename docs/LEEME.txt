@@ -3,11 +3,22 @@ Carpeta docs: documentos de consulta. Claude Code los lee cuando los necesita.
   paleta-nocturne.md        su paleta de colores Nocturne (el documento que usted me pasó).
   guia-complementos.md      «Writing Anki Add-ons», la guía oficial de Anki para programar complementos.
                             Al pegarla, los bloques de código se aplanaron; por eso Claude Code contrasta
-                            siempre con el código real de Anki y con addon-docs.ankiweb.net.
+                            siempre con el código real de Anki y con la guía en línea
+                            (docs.ankiweb.net/addons, antes addon-docs.ankiweb.net).
   guia-interfaz.md          cómo hacer interfaz nativa, sin parpadeos y con la paleta (comprobada
                             contra Anki 26.09.3).
   preparar-entorno.md       cómo se prepara el entorno de trabajo y qué hacer si Anki cambia de versión.
-  ejemplo-referencia/       un complemento modelo ya comprobado.
+  ejemplo-referencia/       un complemento modelo ya comprobado, con sus dos documentos de muestra.
+  aprendizajes.md           lo que Claude Code ha comprobado y conviene recordar, una línea por idea.
+                            El Claude de cada sesión lo lee nada más empezar.
+  automejora.md             la ficha de cada aprendizaje (qué es, por qué conviene, para qué sirve y de
+                            dónde sale), los documentos ya revisados, las propuestas de cambio que
+                            esperan su respuesta y los cambios que usted aprobó.
+  <complemento>/            una carpeta por complemento con dos documentos: «que-hace.md» (todo lo que
+                            hace, en lenguaje llano) y «errores.md» (fallos pendientes, corregidos y
+                            lo que es así a propósito).
 
 El manual de Anki (docs.ankiweb.net) se consulta por internet: no hace falta copiarlo.
+Si añade aquí un documento oficial (por ejemplo, una página del manual o de la guía de complementos),
+Claude Code lo notará al empezar la siguiente sesión, lo leerá y anotará lo que aprenda.
 Si quiere sustituir paleta-nocturne.md o guia-complementos.md por una versión mejor, conserve el nombre.

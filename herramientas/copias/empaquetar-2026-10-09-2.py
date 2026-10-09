@@ -23,9 +23,8 @@ Qué comprueba, por este orden:
   5. La documentación del complemento: docs/<complemento>/que-hace.md al día con la
      versión del manifiesto y docs/<complemento>/errores.md con cada FIX del código.
   6. La automejora: CLAUDE.md con sus apartados protegidos y sin cambios sin registrar,
-     la cerradura de permisos de .claude/settings.json, aprendizajes con ficha y fuente
-     oficial y sin borrados silenciosos, y documentos de docs/ revisados (véanse
-     <documentacion> y <automejora> en CLAUDE.md).
+     aprendizajes con ficha y fuente oficial y sin borrados silenciosos, y documentos
+     de docs/ revisados (véanse <documentacion> y <automejora> en CLAUDE.md).
   7. mypy contra la versión de Anki instalada en el .venv: detecta hooks, funciones
      y métodos inventados y firmas incorrectas.
   8. Importación del paquete fuera de Anki y pruebas de pruebas/<complemento>/.
@@ -108,18 +107,6 @@ PROTECTED_SECTIONS = (
     "comprobaciones",
 )
 LEARNINGS_IMPORT = "@docs/aprendizajes.md"
-# Cerradura: permisos «ask» que obligan a Claude Code a pedir el «sí» del cliente antes de
-# editar las reglas del taller y los documentos del cliente, en cualquier modo de permisos.
-LOCK_RULES = (
-    "Edit(/CLAUDE.md)",
-    "Edit(/docs/guia-complementos.md)",
-    "Edit(/docs/guia-interfaz.md)",
-    "Edit(/docs/paleta-nocturne.md)",
-    "Edit(/docs/preparar-entorno.md)",
-    "Edit(/docs/ejemplo-referencia/**)",
-    "Edit(/herramientas/empaquetar.py)",
-    "Edit(/herramientas/version-anki.txt)",
-)
 LOG_SECTIONS = (
     "Aprendizajes",
     "Retirados",
@@ -888,34 +875,6 @@ def check_instructions(project: Project, approved: list[str], report: Report) ->
         report.ok(f"CLAUDE.md: {lines} líneas, apartados protegidos en su sitio y ningún cambio sin registrar.")
 
 
-def check_lock(project: Project, report: Report) -> None:
-    """La cerradura: los permisos «ask» de .claude/ piden el «sí» del cliente antes de editar las reglas."""
-    rules: set[str] = set()
-    for name in ("settings.json", "settings.local.json"):
-        path = project.root / ".claude" / name
-        if not path.exists():
-            continue
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            report.warn(f".claude/{name} no se puede leer como JSON: no se ha podido comprobar la cerradura de las reglas.")
-            continue
-        permissions = data.get("permissions") if isinstance(data, dict) else None
-        ask = permissions.get("ask") if isinstance(permissions, dict) else None
-        if isinstance(ask, list):
-            rules.update(rule for rule in ask if isinstance(rule, str))
-    missing = [rule for rule in LOCK_RULES if rule not in rules]
-    if missing:
-        report.warn(
-            "La cerradura de las reglas no está completa: faltan en los permisos «ask» de .claude/settings.json "
-            + ", ".join(missing)
-            + ". Sin ellas, Claude puede editar las reglas sin preguntar al cliente: propóngale añadirlas "
-            "sin tocar sus otros permisos (véase <automejora>)."
-        )
-    else:
-        report.ok("Cerradura puesta: Claude Code pide el «sí» del cliente antes de editar las reglas.")
-
-
 def anki_code_root() -> Path | None:
     """Carpeta site-packages del Anki instalado en el .venv (se localiza sin importarlo).
 
@@ -1131,7 +1090,6 @@ def check_self_improvement(project: Project, report: Report) -> None:
             if title not in sections:
                 report.error(f"docs/automejora.md: falta el apartado «## {title}».")
     check_instructions(project, sections.get("Cambios aprobados", []), report)
-    check_lock(project, report)
     check_learnings(project, sections, report)
     check_reviewed_documents(project, sections, report)
     pending = re.findall(r"(?m)^- (PROP-\d{3})\b", "\n".join(sections.get("Propuestas pendientes", [])))
@@ -1377,10 +1335,6 @@ def write_workshop_fixture(project: Project, package: str, version: str) -> None
     today = datetime.date.today().isoformat()
     protected = "".join(f"<{name}>\nTexto.\n</{name}>\n\n" for name in PROTECTED_SECTIONS)
     project.instructions.write_text(f"# Autoprueba\n\n{protected}Aprendizajes: {LEARNINGS_IMPORT}\n", encoding="utf-8")
-    (project.root / ".claude").mkdir(exist_ok=True)
-    (project.root / ".claude" / "settings.json").write_text(
-        json.dumps({"permissions": {"ask": list(LOCK_RULES)}}, indent=2), encoding="utf-8"
-    )
     (project.docs / package).mkdir(parents=True, exist_ok=True)
     project.learnings.write_text(
         "# Aprendizajes\n\n## Vigentes\n- APR-001 · Anki 26.09.3 · Primera idea.\n- APR-002 · Anki 26.09.3 · Segunda idea.\n",
@@ -1449,16 +1403,6 @@ def docs_self_test(project: Project, package: str, version: str) -> list[str]:
             missed.append(label)
         for path, original in originals.items():
             path.write_text(original, encoding="utf-8")
-
-    # La cerradura quitada no bloquea una entrega urgente, pero debe avisar.
-    settings = project.root / ".claude" / "settings.json"
-    original_settings = settings.read_text(encoding="utf-8")
-    settings.write_text("{}", encoding="utf-8")
-    report = Report()
-    check_self_improvement(project, report)
-    if not any("cerradura" in warning for warning in report.warnings):
-        missed.append("una cerradura quitada")
-    settings.write_text(original_settings, encoding="utf-8")
     return missed
 
 
