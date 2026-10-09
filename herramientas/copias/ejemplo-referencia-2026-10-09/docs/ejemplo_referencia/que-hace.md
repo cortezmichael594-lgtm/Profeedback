@@ -1,6 +1,6 @@
 # Qué hace «Ejemplo de referencia»
 
-Versión 1.0.1 · 2026-10-09
+Versión 1.0.0 · 2026-10-09
 
 Complemento de muestra del taller: no está pensado para instalarse, sino para copiar su forma de
 trabajar. Añade dos entradas al menú Herramientas y, si se activa, un botón pequeño en la pantalla de
@@ -56,12 +56,11 @@ confirma, y eso se puede deshacer. Lo único que guarda por su cuenta son sus do
    Anki.
 6. Si no encuentra nada, muestra el aviso breve «No hay ninguna nota que coincida con esa búsqueda.»
 7. Si encuentra notas, pregunta con la cifra exacta y punto de millar: «Se etiquetarán 1.240 notas con
-   «ejemplo». ¿Continuar?»; con una sola, «Se etiquetará 1 nota con «ejemplo». ¿Continuar?». El botón
-   marcado de antemano es «No», para que un Intro de más no lo confirme.
+   «ejemplo». ¿Continuar?». El botón marcado de antemano es «No», para que un Intro de más no lo
+   confirme.
 8. Si acepta, etiqueta todas de una vez, sin congelar Anki, y avisa «Se etiquetaron 1.240 notas. Puede
-   deshacerlo desde Editar → Deshacer.»; con una sola, «Se etiquetó 1 nota. Puede deshacerlo desde
-   Editar → Deshacer.». Esa cifra cuenta solo las notas que han cambiado: las que ya tenían la etiqueta
-   no suman, así que puede ser menor que la de la pregunta, e incluso 0 («Se etiquetaron 0 notas…»).
+   deshacerlo desde Editar → Deshacer.». Esa cifra cuenta solo las notas que han cambiado: las que ya
+   tenían la etiqueta no suman, así que puede ser menor que la de la pregunta.
 9. Editar > Deshacer quita la etiqueta de todas esas notas de una sola vez.
 
 No hace copia de seguridad antes de etiquetar: añadir una etiqueta no borra ni cambia nada de lo que

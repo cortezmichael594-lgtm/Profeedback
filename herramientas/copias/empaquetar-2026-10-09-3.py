@@ -16,8 +16,7 @@ Uso, desde la carpeta del proyecto y con el intérprete del .venv:
 
 Qué comprueba, por este orden:
   1. manifest.json y config.json válidos.
-  2. Cada .py compila; sin PyQt directo, sin colores fijos, sin errores típicos, y sin
-     piezas que el Anki instalado marca como obsoletas (la lista se lee de su código).
+  2. Cada .py compila; sin PyQt directo, sin colores fijos, sin errores típicos.
   3. Los archivos web (css/js/html): sin colores fijos ni recursos de internet.
   4. Las notas de corrección (FIX-NNN): índice y bloques coherentes, y ninguna
      perdida respecto a la última entrega (se guardan en herramientas/registro-fix/).
@@ -40,7 +39,6 @@ from __future__ import annotations
 import argparse
 import ast
 import datetime
-import functools
 import hashlib
 import importlib.util
 import json
@@ -142,8 +140,6 @@ CLAUDE_CODE_RECHECK_DAYS = 180
 # Fuentes oficiales: anfitrión -> comienzos de ruta admitidos ("/" = todo el sitio).
 OFFICIAL_SITES: dict[str, tuple[str, ...]] = {
     "docs.ankiweb.net": ("/",),
-    "dev-docs.ankiweb.net": ("/",),
-    "betas.ankiweb.net": ("/",),
     "addon-docs.ankiweb.net": ("/",),
     "ankiweb.net": ("/",),
     "apps.ankiweb.net": ("/",),
@@ -163,39 +159,6 @@ ANKI_CODE_RE = re.compile(r"(?<![\w/.])(?:_aqt|aqt|anki)/[\w./-]*\w")
 PROJECT_SOURCE_RE = re.compile(r"(?<![\w/.])(?:pruebas|docs)/[\w./-]*\w")
 # Un «@» seguido de una ruta, en un archivo que CLAUDE.md importa, cargaría otro archivo como instrucciones.
 IMPORT_RE = re.compile(r"(?<![\w.])@[\w~./\\-]")
-
-# Piezas obsoletas de Anki (véanse APR-007, APR-008 y APR-016 en docs/automejora.md). Las funciones y
-# los ganchos se leen del Anki instalado en cada comprobación, así que la lista sigue sola a cada versión.
-LEGACY_HOOK_CALLS = {"addHook", "runHook", "runFilter", "remHook"}
-# Nombres demasiado comunes: solo se avisa si el objeto parece el de Anki (note.flush(), col.save()).
-COMMON_METHOD_NAMES = {
-    "all_names",
-    "autosave",
-    "css",
-    "flush",
-    "ids",
-    "is_empty",
-    "log",
-    "rem",
-    "reset",
-    "save",
-    "set_deck",
-    "update",
-}
-# Clase de Anki -> nombre con que suele aparecer su objeto en un complemento.
-OWNER_HINTS = {
-    "AnkiQt": "mw",
-    "AnkiWebView": "web",
-    "Browser": "browser",
-    "Card": "card",
-    "Collection": "col",
-    "DeckManager": "decks",
-    "MediaManager": "media",
-    "ModelManager": "models",
-    "Note": "note",
-    "ProfileManager": "pm",
-    "TagManager": "tags",
-}
 
 
 # ---------------------------------------------------------------------------
@@ -601,129 +564,6 @@ def check_python(folder: Path, files: list[Path], report: Report) -> None:
     )
     if uses_get_config and not (folder / "config.json").exists():
         report.error("El código usa getConfig pero falta config.json: getConfig devolvería None.")
-
-
-@functools.lru_cache(maxsize=1)
-def anki_obsolete_catalog() -> tuple[dict[str, list[tuple[str, str]]], dict[str, str]] | None:
-    """Lo que el Anki instalado marca como obsoleto: {función: [(clase, alternativa)]} y {gancho: alternativa}."""
-    root = anki_code_root()
-    if root is None:
-        return None
-    methods: dict[str, list[tuple[str, str]]] = {}
-    for package in ("anki", "aqt"):
-        for path in sorted((root / package).rglob("*.py")):
-            text = read_text(path) or ""
-            if "@deprecated(" not in text:
-                continue
-            try:
-                tree = ast.parse(text)
-            except SyntaxError:
-                continue
-            for owner, node in functions_with_owner(tree):
-                for decorator in node.decorator_list:
-                    if isinstance(decorator, ast.Call) and dotted_name(decorator.func).split(".")[-1] == "deprecated":
-                        methods.setdefault(node.name, []).append((owner, deprecation_hint(decorator)))
-    hooks: dict[str, str] = {}
-    for relative in ("_aqt/hooks.py", "anki/hooks_gen.py"):
-        text = read_text(root / relative) or ""
-        for old, new in re.findall(r'The hook (\w+) is deprecated\.\\n"\s+"Use (\w+) instead', text):
-            hooks[old] = f"use {new}"
-        try:
-            tree = ast.parse(text)
-        except SyntaxError:
-            continue
-        obsolete = {
-            node.name
-            for node in tree.body
-            if isinstance(node, ast.ClassDef) and "obsolete" in (ast.get_docstring(node) or "").lower()
-        }
-        for node in tree.body:
-            if (
-                isinstance(node, ast.Assign)
-                and len(node.targets) == 1
-                and isinstance(node.targets[0], ast.Name)
-                and isinstance(node.value, ast.Call)
-                and isinstance(node.value.func, ast.Name)
-                and node.value.func.id in obsolete
-            ):
-                hooks.setdefault(node.targets[0].id, "sin sustituto")
-    return methods, hooks
-
-
-def functions_with_owner(tree: ast.Module) -> list[tuple[str, ast.FunctionDef]]:
-    """Funciones del módulo y métodos de sus clases, con el nombre de la clase ("" si no tiene)."""
-    found: list[tuple[str, ast.FunctionDef]] = []
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef):
-            found.append(("", node))
-        elif isinstance(node, ast.ClassDef):
-            found.extend((node.name, child) for child in node.body if isinstance(child, ast.FunctionDef))
-    return found
-
-
-def deprecation_hint(decorator: ast.Call) -> str:
-    for keyword in decorator.keywords:
-        if keyword.arg == "info" and isinstance(keyword.value, ast.Constant):
-            return str(keyword.value.value)
-        if keyword.arg == "replaced_by" and dotted_name(keyword.value):
-            return f"use {dotted_name(keyword.value)}"
-    return "véase su documentación en el código de Anki"
-
-
-def matching_deprecation(func: ast.expr, name: str, owners: list[tuple[str, str]]) -> str | None:
-    """La alternativa a la función obsoleta llamada, o None si su nombre es común y el objeto no parece de Anki."""
-    if name not in COMMON_METHOD_NAMES:
-        return owners[0][1]
-    if not isinstance(func, ast.Attribute):
-        return None
-    tail = (dotted_name(func.value).split(".")[-1] or "").lstrip("_").lower()
-    for owner, hint in owners:
-        expected = "sched" if "Scheduler" in owner else OWNER_HINTS.get(owner, owner.lower())
-        if tail and (tail == expected or tail.endswith("_" + expected)):
-            return hint
-    return None
-
-
-def check_obsolete(folder: Path, files: list[Path], report: Report) -> None:
-    """Funciones @deprecated, ganchos obsoletos o antiguos y archivos *_pb2 (APR-007, APR-008 y APR-016)."""
-    catalog = anki_obsolete_catalog()
-    if catalog is None:
-        return
-    methods, hooks = catalog
-    before = len(report.warnings)
-    for path in files:
-        if path.suffix != ".py":
-            continue
-        relative = path.relative_to(folder).as_posix()
-        try:
-            tree = ast.parse(read_text(path) or "")
-        except SyntaxError:
-            continue  # ya lo informa check_python
-        for node in ast.walk(tree):
-            line = getattr(node, "lineno", "?")
-            if isinstance(node, ast.Call):
-                func = node.func
-                name = func.attr if isinstance(func, ast.Attribute) else func.id if isinstance(func, ast.Name) else ""
-                if name in LEGACY_HOOK_CALLS:
-                    report.warn(f"{relative}:{line}: {name}() es del sistema antiguo de ganchos: use gui_hooks o hooks (APR-008).")
-                elif name in methods:
-                    hint = matching_deprecation(func, name, methods[name])
-                    if hint is not None:
-                        report.warn(
-                            f"{relative}:{line}: {name}() está marcado como obsoleto en el Anki instalado ({hint}): "
-                            "avisa en cada llamada y desaparecerá (APR-007)."
-                        )
-            elif isinstance(node, ast.Attribute) and node.attr in hooks:
-                report.warn(f"{relative}:{line}: el gancho {node.attr} está obsoleto en el Anki instalado ({hooks[node.attr]}) (APR-008).")
-            elif isinstance(node, (ast.Import, ast.ImportFrom)):
-                modules = [alias.name for alias in node.names]
-                if isinstance(node, ast.ImportFrom) and node.module:
-                    modules.append(node.module)
-                internal = next((module for module in modules if "_pb2" in module), None)
-                if internal:
-                    report.warn(f"{relative}:{line}: importa {internal}, un archivo interno de Anki: use los tipos que exporta pylib (APR-016).")
-    if len(report.warnings) == before:
-        report.ok(f"Sin piezas obsoletas de Anki (revisadas {len(methods)} funciones y {len(hooks)} ganchos del Anki instalado).")
 
 
 # ---------------------------------------------------------------------------
@@ -1474,7 +1314,6 @@ def execute(project: Project, name: str | None, options: Options) -> tuple[Repor
     files = package_files(folder, report)
     check_json_files(folder, files, report)
     check_python(folder, files, report)
-    check_obsolete(folder, files, report)
     check_web(folder, files, report)
 
     package = str(manifest["package"]) if manifest else folder.name
@@ -1665,25 +1504,6 @@ def self_test() -> int:
         missed = docs_self_test(project, "autoprueba_ok", "0.0.1")
         if missed:
             print(f"\nAUTOPRUEBA: no detecta {'; '.join(missed)}. No se fíe de esta herramienta.")
-            return 1
-
-        # Cinco piezas obsoletas a propósito; «propio.save()» y «col.update_note()» no lo son.
-        sample = Path(tmp) / "obsoletos" / "muestra.py"
-        sample.parent.mkdir()
-        sample.write_text(
-            "from anki import collection_pb2\nfrom anki.hooks import addHook\nfrom aqt import gui_hooks\n\n\n"
-            "def ejemplo(note, col, propio):\n    note.flush()\n    col.save()\n    propio.save()\n"
-            "    col.update_note(note)\n    gui_hooks.add_cards_did_change_note_type.append(print)\n"
-            "    addHook('leech', print)\n",
-            encoding="utf-8",
-        )
-        obsolete_report = Report()
-        check_obsolete(sample.parent, [sample], obsolete_report)
-        if len(obsolete_report.warnings) != 5:
-            print(
-                f"\nAUTOPRUEBA: el detector de piezas obsoletas da {len(obsolete_report.warnings)} avisos "
-                "en lugar de 5. No se fíe de esta herramienta."
-            )
             return 1
     print("\nAUTOPRUEBA: CORRECTA. La herramienta y el entorno funcionan.")
     return 0

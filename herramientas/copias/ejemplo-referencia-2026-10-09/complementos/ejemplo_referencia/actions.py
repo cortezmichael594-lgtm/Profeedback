@@ -5,9 +5,6 @@ puede tardar (leer o escribir en la colección) va en segundo plano con QueryOp
 (lecturas) o CollectionOp (escrituras, que entran en Editar → Deshacer).
 """
 
-# Historial de correcciones de este archivo:
-# FIX-001 (2026-10-09): con una sola nota, la pregunta y el aviso decían «1 notas».
-
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -70,11 +67,7 @@ def _confirm_and_tag(note_ids: Sequence[NoteId], tag: str) -> None:
     if not note_ids:
         tooltip(strings.NOTHING_FOUND, parent=mw)
         return
-    # --- FIX-001 (2026-10-09) ---
-    # Síntoma: con una sola nota, la pregunta y el aviso final decían «1 notas».
-    # Causa: aquí se rellenaba una frase con el plural fijo.
-    # Regla: las frases con cifra se piden a strings (confirm_tag, tagged), que eligen singular o plural.
-    question = strings.confirm_tag(len(note_ids), tag)
+    question = strings.CONFIRM_TAG.format(count=strings.format_count(len(note_ids)), tag=tag)
     # defaultno=True: ante una operación masiva, un Intro de más no debe confirmarla.
     if not askUser(question, parent=mw, defaultno=True):
         return
@@ -85,4 +78,4 @@ def _confirm_and_tag(note_ids: Sequence[NoteId], tag: str) -> None:
 
 @guarded
 def _on_tagged(changes: OpChangesWithCount) -> None:
-    tooltip(strings.tagged(changes.count), parent=mw)
+    tooltip(strings.TAGGED.format(count=strings.format_count(changes.count)), parent=mw)

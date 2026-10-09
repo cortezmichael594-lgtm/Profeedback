@@ -8,17 +8,15 @@ ninguna.
 
 Fallos detectados que esperan su decisión. Cada uno: fecha, versión, qué pasa y propuesta.
 
-(Ninguno.)
+- 2026-10-09 · versión 1.0.0 · Qué pasa: con una sola nota, la pregunta y el aviso final dicen
+  «1 notas» («Se etiquetarán 1 notas con «ejemplo». ¿Continuar?» y «Se etiquetaron 1 notas…»).
+  Propuesta: escribir «nota» o «notas» según la cifra, como «1 nota» y «2 notas».
 
 ## Corregidos
 
 Cada corrección: número, fecha, versión, qué pasaba, por qué pasaba y la regla que evita que vuelva.
 
-- FIX-001 · 2026-10-09 · versión 1.0.1 · Qué pasaba: con una sola nota, la pregunta y el aviso final
-  decían «1 notas» («Se etiquetarán 1 notas con «ejemplo». ¿Continuar?» y «Se etiquetaron 1 notas…»).
-  Por qué: las frases tenían el plural fijo, sin mirar la cifra. Regla: toda frase con una cifra tiene
-  su forma en singular y en plural, y se elige por la cifra. Prueba de regresión: «TagMessagesTest»,
-  que falló antes del arreglo y pasa después.
+(Ninguna todavía.)
 
 ## Así a propósito
 
