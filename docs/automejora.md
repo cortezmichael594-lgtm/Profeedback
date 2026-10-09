@@ -54,6 +54,15 @@ Una ficha por aprendizaje, con el mismo número que su línea en docs/aprendizaj
 - Comprobado: 2026-10-09, en la documentación de Claude Code.
 - Origen: revisión de fuentes oficiales al crear la automejora.
 
+### APR-006 · Lo que frena una regla «ask» y lo que no
+- Qué es: en los permisos de Claude Code, una regla «ask» (por ejemplo, sobre editar CLAUDE.md) obliga a pedir confirmación al cliente cada vez y en cualquier modo, incluido el que se salta los demás permisos. Las reglas de archivos actúan sobre las herramientas de edición de Claude; un programa que abra y escriba el archivo por su cuenta no pasa por ellas.
+- Por qué es buena práctica: es la cerradura oficial, que no depende de que Claude recuerde una instrucción; y conocer su límite evita confiar en ella más de la cuenta.
+- Para qué sirve: proteger las reglas del taller y los documentos del cliente, y entender por qué el precinto de empaquetar.py sigue haciendo falta.
+- Cómo se aplica: las rutas protegidas van como «Edit(/ruta)» en los permisos «ask» de .claude/settings.json (la lista completa está en empaquetar.py); nunca se rodean escribiendo esos archivos con un comando o un programa.
+- Fuente: https://code.claude.com/docs/en/permission-modes#actions-no-mode-auto-approves y https://code.claude.com/docs/en/permissions#read-and-edit
+- Comprobado: 2026-10-09, en la documentación de Claude Code.
+- Origen: puesta de la cerradura, aprobada por el cliente.
+
 ## Retirados
 
 Aprendizajes que dejaron de valer, con fecha y motivo («- APR-NNN (AAAA-MM-DD): motivo»). Su número no
@@ -93,3 +102,4 @@ Cada cambio de las reglas, con su aprobación, la copia previa y la huella de CL
 
 - 2026-10-09 · CLAUDE.md (apartados nuevos <documentacion> y <automejora>; retoques en <carpetas>, <arranque>, <fuentes_de_verdad>, <metodo>, <memoria_de_correcciones>, <comprobaciones> y <entrega>), empaquetar.py (comprobación de la documentación y de la automejora, y opción --revision), docs/preparar-entorno.md, el ejemplo de referencia y los LEEME. Motivo: el cliente pidió un documento «qué hace» y un registro de errores por complemento, y una automejora a prueba de balas. Aprobado por el cliente: 2026-10-09. Copia previa: herramientas/copias/CLAUDE-2026-10-09.md (y empaquetar-2026-10-09.py y preparar-entorno-2026-10-09.md). Huella de CLAUDE.md: fd7bd1471d5c.
 - 2026-10-09 · PROP-001 en docs/preparar-entorno.md (apartado 4): en las sesiones en la nube, el intérprete es .venv/bin/python y, si la autoprueba falla por libEGL, se instala la pieza gráfica libegl1 con permiso del cliente. PROP-002 en CLAUDE.md (<comprobaciones>): en una sesión en la nube, cada entrega se sube a la rama de trabajo de la sesión, nunca a la principal; en el ordenador del cliente sigue «nunca git push». Motivo: sin la pieza falla la autoprueba en la nube, y lo no subido se pierde al reciclarse el ordenador temporal (https://code.claude.com/docs/en/claude-code-on-the-web#environment-expired). Aprobado por el cliente: 2026-10-09. Copia previa: herramientas/copias/CLAUDE-2026-10-09-2.md (y preparar-entorno-2026-10-09-2.md). Huella de CLAUDE.md: 8a8c8b5a6acf.
+- 2026-10-09 · Cerradura: .claude/settings.json nuevo, con permisos «ask» para editar las reglas del taller y los documentos del cliente; CLAUDE.md (<carpetas> y <automejora>: la cerradura, la prohibición de rodearla y «ni ampliar lo que permite .claude/settings.json»); empaquetar.py (avisa si falta la cerradura, y su autoprueba lo verifica); aprendizaje APR-006. Motivo: que el visto bueno del cliente no dependa de que Claude lo recuerde. Aprobado por el cliente: 2026-10-09. Copia previa: herramientas/copias/CLAUDE-2026-10-09-3.md (y empaquetar-2026-10-09-2.py; .claude/settings.json no existía). Huella de CLAUDE.md: 86a117a4aaa9.
