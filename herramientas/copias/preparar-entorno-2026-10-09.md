@@ -46,8 +46,6 @@ En cuatro líneas como máximo: qué ha quedado preparado y qué falta, si falta
 
 Cuando el cliente diga que ha actualizado Anki a la versión X.Y.Z (Ayuda > Acerca de Anki):
 
-1. Cambie `herramientas/version-anki.txt` y los datos de `<entorno>` de `CLAUDE.md`. Es un cambio de las reglas pedido por el cliente: guarde antes la copia en `herramientas/copias/` y regístrelo en «Cambios aprobados» de `docs/automejora.md` con la huella nueva (véase `<automejora>`).
+1. Cambie `herramientas/version-anki.txt` y los datos de `<entorno>` de `CLAUDE.md`.
 2. Reinstale en el entorno: `uv pip install --python .venv/Scripts/python.exe "aqt[qt]==X.Y.Z" mypy` (sin cero a la izquierda en el mes: 26.09.3 se escribe 26.9.3). Si PyPI aún no publica esa versión, dígaselo al cliente y espere.
-3. Lea las notas de esa versión en https://github.com/ankitects/anki/releases (desde la 23.12 están ahí y no en el manual) y apunte lo que afecte a los complementos.
-4. Ejecute `empaquetar.py` sobre cada complemento de `complementos/`. Resuma al cliente qué falla y arréglelo; cada arreglo lleva su nota FIX.
-5. Ejecute `empaquetar.py --revision`: señala los aprendizajes comprobados con la versión anterior. Vuelva a comprobar cada uno en el código nuevo y, según el caso, actualice su versión, corríjalo o retírelo con su motivo.
+3. Ejecute `empaquetar.py` sobre cada complemento de `complementos/`. Resuma al cliente qué falla y arréglelo; cada arreglo lleva su nota FIX.

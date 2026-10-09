@@ -15,12 +15,15 @@ Puesta en marcha (una sola vez):
 
 Qué hay en cada carpeta:
   CLAUDE.md        las instrucciones que Claude Code lee solo al empezar. No hace falta tocarlo.
-  docs/            documentos de consulta (su paleta Nocturne, la guía de Anki y una guía de interfaz).
+  docs/            documentos de consulta (su paleta Nocturne, la guía de Anki y una guía de interfaz),
+                   lo que Claude Code aprende de una sesión a otra y, por cada complemento, qué hace
+                   y sus errores.
   complementos/    aquí van los complementos. Para mejorar uno que ya tiene, copie su carpeta aquí
                    (en Anki: Herramientas > Complementos > seleccionar > Ver archivos).
                    Si está vacía, Claude Code entenderá que quiere uno nuevo.
   pruebas/         pruebas automáticas de cada complemento (las escribe Claude Code).
-  herramientas/    el comprobador y empaquetador (lo usa Claude Code).
+  herramientas/    el comprobador y empaquetador (lo usa Claude Code) y, en copias/, una copia de las
+                   instrucciones de antes de cada cambio que usted apruebe.
   paquetes/        aquí aparecerán los .ankiaddon terminados (se crea sola).
 
 Su colección de Anki no está en esta carpeta y Claude Code tiene prohibido leerla o tocarla.

@@ -5,6 +5,8 @@ de Anki, supera sus 14 pruebas y se empaqueta sin errores ni avisos.
   complementos/ejemplo_referencia/   el código (menús nativos, diálogo de opciones, operación masiva
                                      con confirmación y deshacer, e insignia en el repaso con la paleta)
   pruebas/ejemplo_referencia/        sus pruebas, con colección temporal
+  docs/ejemplo_referencia/           sus dos documentos, modelo de los de cada complemento: que-hace.md
+                                     (qué hace, en lenguaje llano) y errores.md (sus fallos)
 
-Para ver todas las comprobaciones en acción: copie esas dos subcarpetas a complementos/ y pruebas/ del
-proyecto, ejecute empaquetar.py y bórrelas después.
+Para ver todas las comprobaciones en acción: copie esas tres subcarpetas a complementos/, pruebas/ y
+docs/ del proyecto, ejecute empaquetar.py y bórrelas después.
