@@ -72,15 +72,14 @@ nuevo, empaquetar.py --revision avisa.
 | docs/guia-complementos.md | 069dd8aa4f3e | 2026-10-09 | Copia de la guía oficial; base del taller desde el principio. No se ha releído en busca de aprendizajes nuevos. |
 | docs/guia-interfaz.md | 1884aa0696c4 | 2026-10-09 | Guía del taller; base desde el principio. No se ha releído en busca de aprendizajes nuevos. |
 | docs/paleta-nocturne.md | 4be1cf8b07be | 2026-10-09 | Documento del cliente; base desde el principio. No se ha releído en busca de aprendizajes nuevos. |
-| docs/preparar-entorno.md | a6c0be2f4939 | 2026-10-09 | Actualizado al crear la automejora: notas de versión y revisión de aprendizajes al cambiar Anki. |
+| docs/preparar-entorno.md | d8b5eb71e77a | 2026-10-09 | Actualizado al crear la automejora (notas de versión y revisión de aprendizajes al cambiar Anki) y con PROP-001 (sesiones en la nube). |
 
 ## Propuestas pendientes
 
 Cambios a las reglas que esperan el visto bueno del cliente. Al decidirse, pasan a «Cambios aprobados»
 o a «Propuestas rechazadas».
 
-- PROP-001 (2026-10-09) · docs/preparar-entorno.md: añadir un paso para las sesiones en la nube, que funcionan con Linux: si la comprobación de importación falla con «libEGL.so.1: cannot open shared object file», pedir permiso al cliente e instalar en ese ordenador temporal la pieza gráfica libegl1. Motivo: sin ella falla la autoprueba en la nube; en Windows no hace falta. Fuente: autoprueba de empaquetar.py en la sesión del 2026-10-09. Estado: esperando al cliente.
-- PROP-002 (2026-10-09) · CLAUDE.md, <comprobaciones>: en una sesión en la nube (claude.ai/code), subir cada entrega a la rama de trabajo de la sesión, nunca a la principal; en el ordenador del cliente sigue valiendo «nunca git push». Motivo: el ordenador de la nube se recicla tras un rato sin actividad y lo no subido se pierde. Fuente: https://code.claude.com/docs/en/claude-code-on-the-web#environment-expired. Estado: esperando al cliente.
+(Ninguna.)
 
 ## Propuestas rechazadas
 
@@ -93,3 +92,4 @@ Lo que el cliente no quiso, con fecha y motivo, para no volver a proponerlo sin 
 Cada cambio de las reglas, con su aprobación, la copia previa y la huella de CLAUDE.md que deja.
 
 - 2026-10-09 · CLAUDE.md (apartados nuevos <documentacion> y <automejora>; retoques en <carpetas>, <arranque>, <fuentes_de_verdad>, <metodo>, <memoria_de_correcciones>, <comprobaciones> y <entrega>), empaquetar.py (comprobación de la documentación y de la automejora, y opción --revision), docs/preparar-entorno.md, el ejemplo de referencia y los LEEME. Motivo: el cliente pidió un documento «qué hace» y un registro de errores por complemento, y una automejora a prueba de balas. Aprobado por el cliente: 2026-10-09. Copia previa: herramientas/copias/CLAUDE-2026-10-09.md (y empaquetar-2026-10-09.py y preparar-entorno-2026-10-09.md). Huella de CLAUDE.md: fd7bd1471d5c.
+- 2026-10-09 · PROP-001 en docs/preparar-entorno.md (apartado 4): en las sesiones en la nube, el intérprete es .venv/bin/python y, si la autoprueba falla por libEGL, se instala la pieza gráfica libegl1 con permiso del cliente. PROP-002 en CLAUDE.md (<comprobaciones>): en una sesión en la nube, cada entrega se sube a la rama de trabajo de la sesión, nunca a la principal; en el ordenador del cliente sigue «nunca git push». Motivo: sin la pieza falla la autoprueba en la nube, y lo no subido se pierde al reciclarse el ordenador temporal (https://code.claude.com/docs/en/claude-code-on-the-web#environment-expired). Aprobado por el cliente: 2026-10-09. Copia previa: herramientas/copias/CLAUDE-2026-10-09-2.md (y preparar-entorno-2026-10-09-2.md). Huella de CLAUDE.md: 8a8c8b5a6acf.
