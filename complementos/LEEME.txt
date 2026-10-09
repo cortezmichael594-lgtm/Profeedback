@@ -1,0 +1,9 @@
+Carpeta complementos: el código de cada complemento, una carpeta por complemento.
+
+Para mejorar uno que ya tiene: en Anki, Herramientas > Complementos, seleccione el complemento y
+pulse «Ver archivos»; copie esa carpeta entera aquí. Después pídale los cambios a Claude Code.
+Importante: si el nombre de la carpeta es un número (por ejemplo, 1234567890), el complemento viene
+de AnkiWeb y es de otra persona; Claude Code se lo advertirá antes de tocarlo.
+
+Si esta carpeta no contiene ningún complemento, Claude Code creará uno nuevo cuando se lo pida.
+Este archivo puede quedarse aquí: no estorba.

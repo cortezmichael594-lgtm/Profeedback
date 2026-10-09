@@ -1,0 +1,3 @@
+Carpeta pruebas: una subcarpeta por complemento (pruebas/<nombre_del_paquete>/test_*.py) con las
+pruebas automáticas de su lógica. Las escribe y las ejecuta Claude Code con herramientas/empaquetar.py.
+Usan siempre una colección de Anki temporal, nunca la suya.
