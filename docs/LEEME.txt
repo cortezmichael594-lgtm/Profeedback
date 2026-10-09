@@ -1,10 +1,10 @@
 Carpeta docs: documentos de consulta. Claude Code los lee cuando los necesita.
 
   paleta-nocturne.md        su paleta de colores Nocturne (el documento que usted me pasó).
-  guia-complementos.md      «Writing Anki Add-ons», la guía oficial de Anki para programar complementos.
-                            Al pegarla, los bloques de código se aplanaron; por eso Claude Code contrasta
-                            siempre con el código real de Anki y con la guía en línea
-                            (docs.ankiweb.net/addons, antes addon-docs.ankiweb.net).
+  guia-complementos.md      «Writing Anki Add-ons», la guía oficial de Anki para programar complementos,
+                            copiada del original (con el código intacto) de su versión de Anki. Para el
+                            código manda siempre el de Anki instalado; en línea está en
+                            docs.ankiweb.net/addons (antes addon-docs.ankiweb.net).
   guia-interfaz.md          cómo hacer interfaz nativa, sin parpadeos y con la paleta (comprobada
                             contra Anki 26.09.3).
   preparar-entorno.md       cómo se prepara el entorno de trabajo y qué hacer si Anki cambia de versión.

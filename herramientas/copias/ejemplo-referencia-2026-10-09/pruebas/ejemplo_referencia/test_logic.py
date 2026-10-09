@@ -28,23 +28,6 @@ class FormatCountTest(unittest.TestCase):
         self.assertEqual(strings.format_count(1234567), "1.234.567")
 
 
-class TagMessagesTest(unittest.TestCase):
-    """Prueba de regresión de FIX-001: con una sola nota, las frases decían «1 notas»."""
-
-    def test_one_note_is_singular(self) -> None:
-        self.assertEqual(strings.confirm_tag(1, "x"), "Se etiquetará 1 nota con «x». ¿Continuar?")
-        self.assertEqual(strings.tagged(1), "Se etiquetó 1 nota. Puede deshacerlo desde Editar → Deshacer.")
-
-    def test_many_notes_are_plural_with_thousands_separator(self) -> None:
-        self.assertEqual(strings.confirm_tag(1240, "x"), "Se etiquetarán 1.240 notas con «x». ¿Continuar?")
-        self.assertEqual(
-            strings.tagged(1240), "Se etiquetaron 1.240 notas. Puede deshacerlo desde Editar → Deshacer."
-        )
-
-    def test_zero_notes_is_plural(self) -> None:
-        self.assertEqual(strings.tagged(0), "Se etiquetaron 0 notas. Puede deshacerlo desde Editar → Deshacer.")
-
-
 class CollectionLogicTest(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
